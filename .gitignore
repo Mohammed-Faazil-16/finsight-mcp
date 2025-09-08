@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.env.*
+# models and data (optional to avoid huge files) - keep small sample
+data/all_assets.csv
+models/
+*.joblib
+.DS_Store
