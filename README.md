@@ -66,3 +66,11 @@ pip install -r requirements.txt
 python backend/seed_data.py
 python backend/train_model.py
 streamlit run app.py
+
+# Build Docker image
+docker build -t finsight-neuroquant .
+
+# Run container
+docker run -p 8501:8501 finsight-neuroquant
+
+
