@@ -5,3 +5,5 @@ joblib
 numpy
 uvicorn
 fastapi
+scipy
+matplotlib
