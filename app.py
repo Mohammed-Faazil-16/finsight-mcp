@@ -2,6 +2,7 @@
 import streamlit as st
 import pandas as pd
 import json
+import numpy as np
 
 from backend.orchestrator import NeuroQuantMCP
 from backend.utils import get_random_asset_sample
@@ -10,15 +11,21 @@ from backend.utils import get_random_asset_sample
 # Streamlit config
 # --------------------------------------------------
 st.set_page_config(
-    page_title="FinSight MCP Demo",
-    layout="wide"
+    page_title="FinSight – NeuroQuant MCP",
+    layout="wide",
+    page_icon="📈"
 )
 
-st.title("FinSight — MCP (Model • Context • Protocol) Demo")
+st.title("📈 FinSight — NeuroQuant MCP Decision Engine")
 st.markdown(
-    "Offline, interview-ready FinTech demo integrating **NeuroQuant research logic** "
-    "with MCP (Model–Context–Protocol) reasoning."
+    """
+    **Research-backed FinTech decision system** integrating  
+    **NeuroQuant (Regime Detection + Diffusion Policy)**  
+    with **MCP (Model–Context–Protocol)** reasoning.
+    """
 )
+
+st.divider()
 
 # --------------------------------------------------
 # Instantiate MCP orchestrator
@@ -26,12 +33,12 @@ st.markdown(
 mcp = NeuroQuantMCP()
 
 # --------------------------------------------------
-# Sidebar: Context
+# Sidebar — User Context
 # --------------------------------------------------
-st.sidebar.header("User Context")
+st.sidebar.header("🧠 Investor Context")
 
 risk = st.sidebar.selectbox("Risk tolerance", ["low", "medium", "high"], index=1)
-exposure = st.sidebar.slider("Portfolio exposure", 0.0, 1.0, 0.25)
+exposure = st.sidebar.slider("Current portfolio exposure", 0.0, 1.0, 0.25)
 sentiment = st.sidebar.slider("Market sentiment", -1.0, 1.0, 0.0)
 horizon = st.sidebar.selectbox("Investment horizon", ["short", "medium", "long"], index=1)
 
@@ -43,19 +50,19 @@ context = {
 }
 
 # --------------------------------------------------
-# Asset selection
+# Sidebar — Asset Selection
 # --------------------------------------------------
-st.sidebar.header("Asset Selection")
+st.sidebar.header("📊 Asset Selection")
 
 sample = get_random_asset_sample()
 
-if st.sidebar.button("Pick random asset"):
+if st.sidebar.button("🎲 Pick random asset"):
     sample = get_random_asset_sample()
 
 ticker = st.sidebar.text_input("Ticker", sample["ticker"])
 
 momentum = st.sidebar.number_input(
-    "Momentum",
+    "Momentum (recent return)",
     value=float(sample["features"]["momentum"]),
     format="%.4f"
 )
@@ -75,7 +82,7 @@ sector_signal = st.sidebar.selectbox(
     index=[-1, 0, 1].index(sample["features"]["sector_signal"])
 )
 liquidity = st.sidebar.number_input(
-    "Liquidity",
+    "Liquidity (0–1)",
     min_value=0.0,
     max_value=1.0,
     value=float(sample["features"]["liquidity"]),
@@ -91,56 +98,117 @@ features = {
 }
 
 # --------------------------------------------------
-# Display
+# Asset Overview
 # --------------------------------------------------
-st.subheader(f"Asset: {ticker}")
+st.subheader(f"🧾 Asset: `{ticker}`")
+
+k1, k2, k3, k4 = st.columns(4)
+k1.metric("Momentum", f"{momentum:.2%}")
+k2.metric("Volatility", f"{volatility:.2%}")
+k3.metric("Liquidity", f"{liquidity:.2f}")
+k4.metric("Sector Signal", sector_signal)
+
+st.divider()
 
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    st.markdown("### Asset Features")
+    st.markdown("### 🔍 Asset Features")
     st.table(pd.DataFrame([features]).T.rename(columns={0: "value"}))
 
 with col2:
-    st.markdown("### Context Snapshot")
+    st.markdown("### 🧠 Context Snapshot")
     st.json(context)
 
+st.divider()
+
 # --------------------------------------------------
-# Run MCP
+# Run NeuroQuant MCP
 # --------------------------------------------------
-if st.button("Run MCP"):
-    result = mcp.run(features, context)
+if st.button("🚀 Run NeuroQuant MCP Analysis"):
+    # Simulated return window for regime detection (demo-safe)
+    return_window = np.random.normal(
+        loc=features["momentum"],
+        scale=max(features["volatility"], 1e-4),
+        size=30
+    )
+
+    result = mcp.run(features, context, return_window)
     decision = result["decision"]
 
-    st.markdown("## Recommendation")
+    # --------------------------------------------------
+    # Recommendation
+    # --------------------------------------------------
+    st.markdown("## ✅ Recommendation")
 
-    if decision["action"] == "buy":
-        st.success(f"BUY — confidence {decision['confidence']}")
-    elif decision["action"] == "sell":
-        st.error(f"SELL — confidence {decision['confidence']}")
+    action = decision["action"]
+    confidence = decision["confidence"]
+
+    if action == "buy":
+        st.success(f"**BUY** — confidence `{confidence}`")
+    elif action == "sell":
+        st.error(f"**SELL** — confidence `{confidence}`")
     else:
-        st.info(f"HOLD — confidence {decision['confidence']}")
+        st.info(f"**HOLD** — confidence `{confidence}`")
 
-    st.markdown("### Explanation")
-    for r in decision["reasons"]:
+    # --------------------------------------------------
+    # Explanation
+    # --------------------------------------------------
+    st.markdown("### 🧠 Explanation")
+    for r in result["explanation"]:
         st.write(f"- {r}")
 
-    st.markdown("### Adjusted Probabilities")
-    st.dataframe(pd.DataFrame(result["adjusted_probs"], index=["probability"]).T)
+    # --------------------------------------------------
+    # Regime Info
+    # --------------------------------------------------
+    st.markdown("### 🌐 Market Regime Detected")
+    st.info(result["regime"])
 
-    st.markdown("### Raw Model Output")
-    st.dataframe(pd.DataFrame(result["raw_model_probs"], index=["probability"]).T)
+    # --------------------------------------------------
+    # Probability Visuals
+    # --------------------------------------------------
+    st.markdown("### 📊 Smoothed Decision Probabilities")
+    prob_df = pd.DataFrame(result["smoothed_probs"], index=["Probability"]).T
+    st.bar_chart(prob_df)
 
+    st.markdown("### 🤖 Raw Model Output")
+    raw_df = pd.DataFrame(result["raw_probs"], index=["Probability"]).T
+    st.dataframe(raw_df)
+
+    # --------------------------------------------------
+    # Decision Summary
+    # --------------------------------------------------
+    st.markdown("### 🧾 Decision Summary")
+    st.info(
+        f"""
+        **Final Action:** {action.upper()}  
+        **Confidence:** {confidence:.2f}
+
+        This decision is derived from:
+        - Machine learning prediction (RandomForest)
+        - Wasserstein-based regime detection (NeuroQuant)
+        - Diffusion-smoothed policy update
+        - Risk-aware MCP protocol
+        """
+    )
+
+    # --------------------------------------------------
+    # Export
+    # --------------------------------------------------
     export = {
         "ticker": ticker,
         "features": features,
         "context": context,
+        "regime": result["regime"],
         "decision": decision
     }
 
     st.download_button(
-        "Download Recommendation JSON",
+        "⬇️ Download Recommendation (JSON)",
         json.dumps(export, indent=2),
         file_name=f"{ticker}_recommendation.json",
         mime="application/json"
     )
+
+else:
+    st.info("Click **Run NeuroQuant MCP Analysis** to generate a regime-aware recommendation.")

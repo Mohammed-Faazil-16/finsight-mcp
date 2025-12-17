@@ -14,15 +14,19 @@ class NeuroQuantMCP:
     ---------------------------
     Coordinates:
     - Model inference
-    - Regime detection
-    - Policy smoothing
+    - Regime detection (Wasserstein distance)
+    - Diffusion-inspired policy smoothing
     - Context-aware protocol rules
-    - Explainability
+    - Explainability layer
     """
 
     def __init__(self):
         self.model = ModelContextProtocol()
-        self.prev_probs = {"buy": 0.33, "hold": 0.34, "sell": 0.33}
+        self.prev_probs = {
+            "buy": 0.33,
+            "hold": 0.34,
+            "sell": 0.33
+        }
 
     def _simulate_return_window(self, length=60):
         """
@@ -31,42 +35,53 @@ class NeuroQuantMCP:
         """
         return np.random.normal(loc=0.001, scale=0.02, size=length)
 
-    def run(self, features, context):
-        # --------------------------------------------------
-        # 1. Simulate return window (demo-safe)
-        # --------------------------------------------------
-        return_window = self._simulate_return_window()
+    def run(self, features, context, return_window):
+        """
+        Full NeuroQuant MCP pipeline:
+        Model → Regime Detection → Diffusion Policy → Protocol → Explanation
+        """
+
+        # -----------------------------
+        # Defensive fallback
+        # -----------------------------
+        if return_window is None or len(return_window) < 5:
+            return_window = self._simulate_return_window()
+
         prev_window = return_window[:-5]
 
-        # --------------------------------------------------
-        # 2. Regime detection
-        # --------------------------------------------------
+        # -----------------------------
+        # Regime detection (Wasserstein)
+        # -----------------------------
         distance = compute_regime_distance(return_window, prev_window)
         regime = classify_regime(distance)
 
-        # --------------------------------------------------
-        # 3. Raw model probabilities
-        # --------------------------------------------------
+        # -----------------------------
+        # Base model prediction
+        # -----------------------------
         raw_probs = self.model.model_predict_proba(features)
 
-        # --------------------------------------------------
-        # 4. Policy diffusion (temporal smoothing)
-        # --------------------------------------------------
+        # -----------------------------
+        # Diffusion-inspired smoothing
+        # -----------------------------
         alpha = min(1.0, distance / 0.1)
-        smooth_probs = interpolate_policy(self.prev_probs, raw_probs, alpha)
+        smoothed_probs = interpolate_policy(
+            self.prev_probs,
+            raw_probs,
+            alpha
+        )
 
-        # --------------------------------------------------
-        # 5. Context + protocol decision
-        # --------------------------------------------------
+        # -----------------------------
+        # Protocol decision layer
+        # -----------------------------
         decision = apply_protocol(
-            smooth_probs,
+            smoothed_probs,
             context,
             regime
         )
 
-        # --------------------------------------------------
-        # 6. Explainability
-        # --------------------------------------------------
+        # -----------------------------
+        # Explainability
+        # -----------------------------
         explanation = generate_explanation(
             decision["action"],
             regime,
@@ -74,17 +89,15 @@ class NeuroQuantMCP:
             alpha
         )
 
-        self.prev_probs = smooth_probs
+        # -----------------------------
+        # Update internal state
+        # -----------------------------
+        self.prev_probs = smoothed_probs
 
-        # --------------------------------------------------
-        # 7. Unified output (UI-friendly)
-        # --------------------------------------------------
         return {
             "regime": regime,
-            "raw_model_probs": raw_probs,
-            "adjusted_probs": smooth_probs,
-            "decision": {
-                **decision,
-                "reasons": explanation
-            }
+            "raw_probs": raw_probs,
+            "smoothed_probs": smoothed_probs,
+            "decision": decision,
+            "explanation": explanation
         }

@@ -1,12 +1,22 @@
+# -------------------------
 # Python
+# -------------------------
 __pycache__/
 *.pyc
 .venv/
 venv/
 .env
 .env.*
-# models and data (optional to avoid huge files) - keep small sample
-data/all_assets.csv
+
+# -------------------------
+# ML artifacts (DO NOT COMMIT)
+# -------------------------
+data/
+backend/data/
 models/
 *.joblib
+
+# -------------------------
+# OS / editor
+# -------------------------
 .DS_Store
